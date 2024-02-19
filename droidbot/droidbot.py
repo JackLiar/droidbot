@@ -56,9 +56,8 @@ class DroidBot(object):
         initiate droidbot with configurations
         :return:
         """
-        logging.basicConfig(level=logging.DEBUG if debug_mode else logging.INFO)
-
         self.logger = logging.getLogger("DroidBot")
+        self.logger.level =logging.DEBUG if debug_mode else logging.INFO 
         DroidBot.instance = self
 
         self.output_dir = output_dir

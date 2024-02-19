@@ -7,22 +7,20 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 import threading
-
+import time
 from xmlrpc.client import ServerProxy
-if sys.version.startswith("3"):
-    from xmlrpc.server import SimpleXMLRPCServer
-    from xmlrpc.server import SimpleXMLRPCRequestHandler
-else:
-    from SimpleXMLRPCServer import SimpleXMLRPCServer
-    from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 
-from .device import Device
-from .app import App
+if sys.version.startswith("3"):
+    from xmlrpc.server import SimpleXMLRPCRequestHandler, SimpleXMLRPCServer
+else:
+    from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler, SimpleXMLRPCServer
 
 from .adapter.droidbot import DroidBotConn
 from .adapter.qemu import QEMUConn
+from .app import App
+from .device import Device
+
 
 class RPCHandler(SimpleXMLRPCRequestHandler):
     def _dispatch(self, method, params):
@@ -70,8 +68,8 @@ class DroidMaster(object):
         initiate droidbot's with configurations
         :return:
         """
-        logging.basicConfig(level=logging.DEBUG if debug_mode else logging.INFO)
         self.logger = logging.getLogger('DroidMaster')
+        self.logger.level=logging.DEBUG if debug_mode else logging.INFO
         DroidMaster.instance = self
 
         # 1. Save DroidBot Parameters

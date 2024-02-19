@@ -2,8 +2,8 @@ import logging
 import subprocess
 import telnetlib
 import time
-from .adapter import Adapter
 
+from .adapter import Adapter
 
 QEMU_START_DELAY = 60
 
@@ -31,8 +31,8 @@ class QEMUConn(Adapter):
         initiate a QEMU connection
         :return:
         """
-        logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger('QEMU')
+        self.logger.level = logging.INFO 
 
         self.hda = hda
         self.domain = "localhost"

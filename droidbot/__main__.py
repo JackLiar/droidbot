@@ -1,9 +1,13 @@
 # helper file of droidbot
 # it parses command arguments and send the options to droidbot
 import argparse
+import logging
+
+from androguard.util import set_log
 
 from droidbot import DroidBot, env_manager, input_manager, input_policy
 from droidbot.droidmaster import DroidMaster
+from droidbot.utils import LOG_FORMAT
 
 
 def parse_args():
@@ -104,6 +108,11 @@ def main():
         return
     if not opts.output_dir and opts.cv_mode:
         print("To run in CV mode, you need to specify an output dir (using -o option).")
+    
+    level = logging.DEBUG if opts.debug_mode else logging.INFO
+    logging.basicConfig(level=level, format=LOG_FORMAT)
+    logging.getLogger("loguru").level = logging.WARN
+    set_log("WARNING")
 
     if opts.distributed:
         if opts.distributed == "master":

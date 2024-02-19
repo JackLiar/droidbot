@@ -1,10 +1,9 @@
-import logging
 import collections
 import copy
 import logging
+import math
 import random
 import time
-import math
 
 import numpy as np
 import torch
@@ -12,10 +11,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence
 
-from .input_event import KeyEvent, IntentEvent, TouchEvent, UIEvent, KillAppEvent
+from .input_event import IntentEvent, KeyEvent, KillAppEvent, TouchEvent, UIEvent
 from .input_policy import UtgBasedInputPolicy
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s")
 DEBUG = True
 ACTION_INEFFECTIVE = 'ineffective'
 
@@ -98,8 +96,7 @@ class TextEncoder:
             self.nlp = spacy.load("en_core_web_md")
             self.embed_size = 300
         if method == 'bert':
-            from transformers import BertTokenizer, BertModel
-            from torch.nn import TransformerEncoder, TransformerEncoderLayer
+            from transformers import BertModel, BertTokenizer
             self.tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased')
             self.text_encoder = BertModel.from_pretrained('bert-base-multilingual-cased')
             self.embed_size = 768
@@ -631,7 +628,7 @@ class MemoryGuidedPolicy(UtgBasedInputPolicy):
                 self.logger.info(f"navigating, {len(self._nav_steps)} steps left")
                 return nav_action_
             else:
-                self.logger.warning(f"navigation failed")
+                self.logger.warning("navigation failed")
                 self.utg.remove_transition(self.last_event, self.last_state, nav_state)
 
     def _get_nav_action(self, current_state, nav_state, nav_action):
