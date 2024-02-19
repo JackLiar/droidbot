@@ -4,14 +4,13 @@ import re
 import subprocess
 import time
 from enum import Enum
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 try:
     from shlex import quote  # Python 3
 except ImportError:
     from pipes import quote  # Python 2
 
-from droidbot.device import Device
 
 from .adapter import Adapter
 
@@ -43,7 +42,7 @@ class ADB(Adapter):
     RO_SECURE_PROPERTY = "ro.secure"
     RO_DEBUGGABLE_PROPERTY = "ro.debuggable"
 
-    def __init__(self, device: Optional[Device] = None):
+    def __init__(self, device=None):
         """
         initiate a ADB connection from serial no
         the serial no should be in output of `adb devices`
@@ -52,8 +51,9 @@ class ADB(Adapter):
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         if device is None:
+            from droidbot.device import Device
+
             device = Device()
-        self.device = device
 
         self.cmd_prefix = ["adb", "-s", device.serial]
 
