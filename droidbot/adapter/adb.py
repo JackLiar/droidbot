@@ -12,6 +12,7 @@ except ImportError:
     from pipes import quote  # Python 2
 
 from droidbot.device import Device
+
 from .adapter import Adapter
 
 

@@ -4,14 +4,18 @@
 # droidbot will start interacting with Android in AVD like a human
 import logging
 import os
-import sys
-import pkg_resources
 import shutil
+import sys
+import xmlrpc.client
+from os import PathLike
 from threading import Timer
+from typing import Optional, Union
 
-from .device import Device
+import pkg_resources
+
 from .app import App
-from .env_manager import AppEnvManager
+from .device import Device
+from .env_manager import AppEnvManager, EnvPolicy
 from .input_manager import InputManager
 
 
@@ -19,39 +23,42 @@ class DroidBot(object):
     """
     The main class of droidbot
     """
+
     # this is a single instance class
     instance = None
 
-    def __init__(self,
-                 app_path=None,
-                 device_serial=None,
-                 is_emulator=False,
-                 output_dir=None,
-                 env_policy=None,
-                 policy_name=None,
-                 random_input=False,
-                 script_path=None,
-                 event_count=None,
-                 event_interval=None,
-                 timeout=None,
-                 keep_app=None,
-                 keep_env=False,
-                 cv_mode=False,
-                 debug_mode=False,
-                 profiling_method=None,
-                 grant_perm=False,
-                 enable_accessibility_hard=False,
-                 master=None,
-                 humanoid=None,
-                 ignore_ad=False,
-                 replay_output=None):
+    def __init__(
+        self,
+        app_path: PathLike,
+        device_serial: str,
+        is_emulator=False,
+        output_dir: PathLike = None,
+        env_policy: EnvPolicy = EnvPolicy.default(),
+        policy_name: str = None,
+        random_input=False,
+        script_path: Optional[PathLike] = None,
+        event_count: Optional[int] = None,
+        event_interval: Optional[float] = None,
+        timeout: float = 0.0,
+        keep_app=False,
+        keep_env=False,
+        cv_mode=False,
+        debug_mode=False,
+        profiling_method: Union[str, int] = None,
+        grant_perm=False,
+        enable_accessibility_hard=False,
+        master: Optional[str] = None,
+        humanoid: Optional[str] = None,
+        ignore_ad=False,
+        replay_output: Optional[PathLike]=None,
+    ):
         """
         initiate droidbot with configurations
         :return:
         """
         logging.basicConfig(level=logging.DEBUG if debug_mode else logging.INFO)
 
-        self.logger = logging.getLogger('DroidBot')
+        self.logger = logging.getLogger("DroidBot")
         DroidBot.instance = self
 
         self.output_dir = output_dir
@@ -92,13 +99,11 @@ class DroidBot(object):
                 grant_perm=grant_perm,
                 enable_accessibility_hard=self.enable_accessibility_hard,
                 humanoid=self.humanoid,
-                ignore_ad=ignore_ad)
+                ignore_ad=ignore_ad,
+            )
             self.app = App(app_path, output_dir=self.output_dir)
 
-            self.env_manager = AppEnvManager(
-                device=self.device,
-                app=self.app,
-                env_policy=env_policy)
+            self.env_manager = AppEnvManager(device=self.device, app=self.app, env_policy=env_policy)
             self.input_manager = InputManager(
                 device=self.device,
                 app=self.app,
@@ -109,17 +114,17 @@ class DroidBot(object):
                 script_path=script_path,
                 profiling_method=profiling_method,
                 master=master,
-                replay_output=replay_output)
-        except Exception:
-            import traceback
-            traceback.print_exc()
+                replay_output=replay_output,
+            )
+        except Exception as e:
+            self.logger.exception(e)
             self.stop()
             sys.exit(-1)
 
     @staticmethod
     def get_instance():
         if DroidBot.instance is None:
-            print("Error: DroidBot is not initiated!")
+            logging.error("Error: DroidBot is not initiated!")
             sys.exit(-1)
         return DroidBot.instance
 
@@ -163,9 +168,8 @@ class DroidBot(object):
         except KeyboardInterrupt:
             self.logger.info("Keyboard interrupt.")
             pass
-        except Exception:
-            import traceback
-            traceback.print_exc()
+        except Exception as e:
+            self.logger.exception(e)
             self.stop()
             sys.exit(-1)
 
@@ -188,9 +192,7 @@ class DroidBot(object):
             self.device.tear_down()
         if not self.keep_app:
             self.device.uninstall_app(self.app)
-        if hasattr(self.input_manager.policy, "master") and \
-           self.input_manager.policy.master:
-            import xmlrpc.client
+        if hasattr(self.input_manager.policy, "master") and self.input_manager.policy.master:
             proxy = xmlrpc.client.ServerProxy(self.input_manager.policy.master)
             proxy.stop_worker(self.device.serial)
 

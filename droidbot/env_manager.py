@@ -5,16 +5,21 @@
 # The environment should be determined before app start running.
 # We don't need to set up all environments for one app,
 # instead we select a subset according to static analysis result of app.
-import logging
 import json
-import time
+import logging
 import os
+import time
+from enum import Enum
 
-POLICY_NONE = "none"
-POLICY_DUMMY = "dummy"
-POLICY_STATIC = "static"
 
-DEFAULT_POLICY = POLICY_NONE
+class EnvPolicy(Enum):
+    POLICY_NONE = "none"
+    POLICY_DUMMY = "dummy"
+    POLICY_STATIC = "static"
+
+    @classmethod
+    def default():
+        EnvPolicy.POLICY_NONE
 
 
 class UnknownEnvException(Exception):
@@ -247,13 +252,13 @@ class AppEnvManager(object):
         self.enabled = True
 
         if not self.policy:
-            self.policy = POLICY_NONE
+            self.policy = EnvPolicy.default()
 
-        if self.policy == POLICY_NONE:
+        if self.policy == EnvPolicy.POLICY_NONE:
             self.env_factory = None
-        elif self.policy == POLICY_DUMMY:
+        elif self.policy == EnvPolicy.POLICY_DUMMY:
             self.env_factory = DummyEnvFactory()
-        elif self.policy == POLICY_STATIC:
+        elif self.policy == EnvPolicy.POLICY_STATIC:
             self.env_factory = StaticEnvFactory(app)
         else:
             self.env_factory = FileEnvFactory(self.policy)
