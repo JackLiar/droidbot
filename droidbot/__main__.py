@@ -2,6 +2,7 @@
 # it parses command arguments and send the options to droidbot
 import argparse
 import logging
+import os
 
 from androguard.util import set_log
 
@@ -102,17 +103,17 @@ def main():
     it starts a droidbot according to the arguments given in cmd line
     """
     opts = parse_args()
-    import os
-    if not os.path.exists(opts.apk_path):
-        print("APK does not exist.")
-        return
-    if not opts.output_dir and opts.cv_mode:
-        print("To run in CV mode, you need to specify an output dir (using -o option).")
-    
+
     level = logging.DEBUG if opts.debug_mode else logging.INFO
     logging.basicConfig(level=level, format=LOG_FORMAT)
     logging.getLogger("loguru").level = logging.WARN
     set_log("WARNING")
+
+    if not os.path.exists(opts.apk_path):
+        logging.error("APK does not exist.")
+        return
+    if not opts.output_dir and opts.cv_mode:
+        logging.warn("To run in CV mode, you need to specify an output dir (using -o option).")
 
     if opts.distributed:
         if opts.distributed == "master":
