@@ -3,6 +3,8 @@ import os
 import hashlib
 from .intent import Intent
 
+from androguard.core.apk import APK
+
 
 class App(object):
     """
@@ -25,7 +27,6 @@ class App(object):
             if not os.path.isdir(output_dir):
                 os.makedirs(output_dir)
 
-        from androguard.core.bytecodes.apk import APK
         self.apk = APK(self.app_path)
         self.package_name = self.apk.get_package()
         self.app_name = self.apk.get_app_name()

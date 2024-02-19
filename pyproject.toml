@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "droidbot"
+version = "1.0.2b4"
+description = "A lightweight UI-guided test input generator for Android."
+authors = ["Your Name <you@example.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+androguard = "^4.0.2"
+setuptools = "^69.1.0"
+networkx = "^3.2.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
