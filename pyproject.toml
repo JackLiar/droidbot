@@ -11,6 +11,7 @@ python = "^3.12"
 androguard = "^4.0.2"
 setuptools = "^69.1.0"
 networkx = "^3.2.1"
+pillow = "^10.2.0"
 
 
 [build-system]
