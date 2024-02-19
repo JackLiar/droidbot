@@ -18,7 +18,7 @@ class EnvPolicy(Enum):
     POLICY_STATIC = "static"
 
     @classmethod
-    def default():
+    def default(cls):
         EnvPolicy.POLICY_NONE
 
 

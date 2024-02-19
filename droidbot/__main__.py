@@ -1,10 +1,8 @@
 # helper file of droidbot
 # it parses command arguments and send the options to droidbot
 import argparse
-from droidbot import input_manager
-from droidbot import input_policy
-from droidbot import env_manager
-from droidbot import DroidBot
+
+from droidbot import DroidBot, env_manager, input_manager, input_policy
 from droidbot.droidmaster import DroidMaster
 
 
@@ -121,7 +119,7 @@ def main():
             is_emulator=opts.is_emulator,
             output_dir=opts.output_dir,
             # env_policy=opts.env_policy,
-            env_policy=env_manager.POLICY_NONE,
+            env_policy=env_manager.EnvPolicy.POLICY_NONE,
             policy_name=opts.input_policy,
             random_input=opts.random_input,
             script_path=opts.script_path,
@@ -148,7 +146,7 @@ def main():
             is_emulator=opts.is_emulator,
             output_dir=opts.output_dir,
             # env_policy=opts.env_policy,
-            env_policy=env_manager.POLICY_NONE,
+            env_policy=env_manager.EnvPolicy.POLICY_NONE,
             policy_name=opts.input_policy,
             random_input=opts.random_input,
             script_path=opts.script_path,
