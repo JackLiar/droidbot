@@ -630,7 +630,7 @@ class Device(object):
         if re.search(r"(Error)|(Cannot find 'App')", out, re.IGNORECASE | re.MULTILINE):
             raise RuntimeError(out)
 
-    def install_app(self, app):
+    def install_app(self, app: App):
         """
         install an app to device
         @param app: instance of App
@@ -647,7 +647,7 @@ class Device(object):
             install_cmd.append(app.app_path)
             install_p = subprocess.Popen(install_cmd, stdout=subprocess.PIPE)
             while self.connected and package_name not in self.adb.get_installed_apps():
-                print("Please wait while installing the app...")
+                self.logger.info("Please wait while installing the app...")
                 time.sleep(2)
             if not self.connected:
                 install_p.terminate()

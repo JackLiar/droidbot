@@ -1,10 +1,15 @@
-import sys
 import json
 import logging
+import os
 import random
+import time
 from abc import abstractmethod
+from xmlrpc.client import ServerProxy
 
-from .input_event import InputEvent, KeyEvent, IntentEvent, TouchEvent, ManualEvent, SetTextEvent, KillAppEvent
+from .app import App
+from .device_state import DeviceState
+from .input_event import InputEvent, IntentEvent, KeyEvent, KillAppEvent, ManualEvent, SetTextEvent, TouchEvent
+from .intent import Intent
 from .utg import UTG
 
 # Max number of restarts
@@ -49,7 +54,7 @@ class InputPolicy(object):
     def __init__(self, device, app):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.device = device
-        self.app = app
+        self.app: App = app
         self.action_count = 0
         self.master = None
 
@@ -82,8 +87,7 @@ class InputPolicy(object):
             #     break
             except Exception as e:
                 self.logger.warning("exception during sending events: %s" % e)
-                import traceback
-                traceback.print_exc()
+                self.logger.exception(e)
                 continue
             self.action_count += 1
 
@@ -141,7 +145,6 @@ class UtgBasedInputPolicy(InputPolicy):
         # Get current device state
         self.current_state = self.device.get_current_state()
         if self.current_state is None:
-            import time
             time.sleep(5)
             return KeyEvent(name="BACK")
 
@@ -374,7 +377,7 @@ class UtgGreedySearchPolicy(UtgBasedInputPolicy):
         generate an event based on current UTG
         @return: InputEvent
         """
-        current_state = self.current_state
+        current_state: DeviceState = self.current_state
         self.logger.info("Current state: %s" % current_state.state_str)
         if current_state.state_str in self.__missed_states:
             self.__missed_states.remove(current_state.state_str)
@@ -472,11 +475,7 @@ class UtgGreedySearchPolicy(UtgBasedInputPolicy):
         return IntentEvent(intent=stop_app_intent)
 
     def __sort_inputs_by_humanoid(self, possible_events):
-        if sys.version.startswith("3"):
-            from xmlrpc.client import ServerProxy
-        else:
-            from xmlrpclib import ServerProxy
-        proxy = ServerProxy("http://%s/" % self.device.humanoid)
+        proxy = ServerProxy(f"http://{self.device.humanoid}/" )
         request_json = {
             "history_view_trees": self.humanoid_view_trees,
             "history_events": [x.__dict__ for x in self.humanoid_events],
@@ -546,7 +545,6 @@ class UtgReplayPolicy(InputPolicy):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.replay_output = replay_output
 
-        import os
         event_dir = os.path.join(replay_output, "events")
         self.event_paths = sorted([os.path.join(event_dir, x) for x in
                                    next(os.walk(event_dir))[2]
@@ -566,7 +564,6 @@ class UtgReplayPolicy(InputPolicy):
         generate an event based on replay_output
         @return: InputEvent
         """
-        import time
         while self.event_idx < len(self.event_paths) and \
               self.num_replay_tries < MAX_REPLY_TRIES:
             self.num_replay_tries += 1
@@ -585,7 +582,7 @@ class UtgReplayPolicy(InputPolicy):
 
                     try:
                         event_dict = json.load(f)
-                    except Exception as e:
+                    except Exception:
                         self.logger.info("Loading %s failed" % event_path)
                         continue
 
