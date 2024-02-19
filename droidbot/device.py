@@ -1,23 +1,32 @@
 import logging
 import os
+import random
 import re
+import shutil
+import socket
 import subprocess
 import sys
+import threading
 import time
+from datetime import datetime
+from os import PathLike
+from typing import Optional
 
 from .adapter.adb import ADB
 from .adapter.droidbot_app import DroidBotAppConn
+from .adapter.droidbot_ime import DroidBotIme
 from .adapter.logcat import Logcat
 from .adapter.minicap import Minicap
 from .adapter.process_monitor import ProcessMonitor
 from .adapter.telnet import TelnetConsole
 from .adapter.user_input_monitor import UserInputMonitor
-from .adapter.droidbot_ime import DroidBotIme
 from .app import App
+from .device_state import DeviceState
 from .intent import Intent
+from .utils import get_available_devices
 
-DEFAULT_NUM = '1234567890'
-DEFAULT_CONTENT = 'Hello world!'
+DEFAULT_NUM = "1234567890"
+DEFAULT_CONTENT = "Hello world!"
 
 
 class Device(object):
@@ -25,9 +34,18 @@ class Device(object):
     this class describes a connected device
     """
 
-    def __init__(self, device_serial=None, is_emulator=False, output_dir=None,
-                 cv_mode=False, grant_perm=False, telnet_auth_token=None,
-                 enable_accessibility_hard=False, humanoid=None, ignore_ad=False):
+    def __init__(
+        self,
+        device_serial: Optional[str] = None,
+        is_emulator=False,
+        output_dir: Optional[PathLike] = None,
+        cv_mode=False,
+        grant_perm=False,
+        telnet_auth_token=None,
+        enable_accessibility_hard=False,
+        humanoid: Optional[str] = None,
+        ignore_ad=False,
+    ):
         """
         initialize a device connection
         :param device_serial: serial number of target device
@@ -37,10 +55,9 @@ class Device(object):
         self.logger = logging.getLogger(self.__class__.__name__)
 
         if device_serial is None:
-            from .utils import get_available_devices
             all_devices = get_available_devices()
             if len(all_devices) == 0:
-                self.logger.warning("ERROR: No device connected.")
+                self.logger.error("ERROR: No device connected.")
                 sys.exit(-1)
             device_serial = all_devices[0]
         if "emulator" in device_serial and not is_emulator:
@@ -88,7 +105,7 @@ class Device(object):
             self.logcat: True,
             self.user_input_monitor: True,
             self.process_monitor: True,
-            self.droidbot_ime: True
+            self.droidbot_ime: True,
         }
 
         # minicap currently not working on emulators
@@ -183,7 +200,6 @@ class Device(object):
         if self.output_dir is not None:
             temp_dir = os.path.join(self.output_dir, "temp")
             if os.path.exists(temp_dir):
-                import shutil
                 shutil.rmtree(temp_dir)
 
     def tear_down(self):
@@ -295,7 +311,7 @@ class Device(object):
         if telnet is None:
             self.logger.warning("Telnet not connected, so can't shake the device.")
         sensor_xyz = [(-float(v * 10) + 1, float(v) + 9.8, float(v * 2) + 0.5) for v in [1, -1, 1, -1, 1, -1, 0]]
-        for (x, y, z) in sensor_xyz:
+        for x, y, z in sensor_xyz:
             telnet.run_cmd("sensor set acceleration %f:%f:%f" % (x, y, z))
 
     def add_env(self, env):
@@ -313,10 +329,12 @@ class Device(object):
         :return:
         """
         assert self.adb is not None
-        contact_intent = Intent(prefix="start",
-                                action="android.intent.action.INSERT",
-                                mime_type="vnd.android.cursor.dir/contact",
-                                extra_string=contact_data)
+        contact_intent = Intent(
+            prefix="start",
+            action="android.intent.action.INSERT",
+            mime_type="vnd.android.cursor.dir/contact",
+            extra_string=contact_data,
+        )
         self.send_intent(intent=contact_intent)
         time.sleep(2)
         self.adb.press("BACK")
@@ -357,9 +375,7 @@ class Device(object):
         :param phone: str, phonenum
         :return:
         """
-        call_intent = Intent(prefix='start',
-                             action="android.intent.action.CALL",
-                             data_uri="tel:%s" % phone)
+        call_intent = Intent(prefix="start", action="android.intent.action.CALL", data_uri="tel:%s" % phone)
         return self.send_intent(intent=call_intent)
 
     def send_sms(self, phone=DEFAULT_NUM, content=DEFAULT_CONTENT):
@@ -369,14 +385,16 @@ class Device(object):
         :param content: str, content of sms
         :return:
         """
-        send_sms_intent = Intent(prefix='start',
-                                 action="android.intent.action.SENDTO",
-                                 data_uri="sms:%s" % phone,
-                                 extra_string={'sms_body': content},
-                                 extra_boolean={'exit_on_sent': 'true'})
+        send_sms_intent = Intent(
+            prefix="start",
+            action="android.intent.action.SENDTO",
+            data_uri="sms:%s" % phone,
+            extra_string={"sms_body": content},
+            extra_boolean={"exit_on_sent": "true"},
+        )
         self.send_intent(intent=send_sms_intent)
         time.sleep(2)
-        self.adb.press('66')
+        self.adb.press("66")
         return True
 
     def receive_sms(self, phone=DEFAULT_NUM, content=DEFAULT_CONTENT):
@@ -399,10 +417,9 @@ class Device(object):
         return self.telnet.run_cmd("geo fix %s %s" % (x, y))
 
     def set_continuous_gps(self, center_x, center_y, delta_x, delta_y):
-        import threading
         gps_thread = threading.Thread(
-            target=self.set_continuous_gps_blocked,
-            args=(center_x, center_y, delta_x, delta_y))
+            target=self.set_continuous_gps_blocked, args=(center_x, center_y, delta_x, delta_y)
+        )
         gps_thread.start()
         return True
 
@@ -415,7 +432,6 @@ class Device(object):
         @param delta_x: range of x coordinate
         @param delta_y: range of y coordinate
         """
-        import random
         while self.connected:
             x = random.random() * delta_x * 2 + center_x - delta_x
             y = random.random() * delta_y * 2 + center_y - delta_y
@@ -429,25 +445,25 @@ class Device(object):
         db_name = "/data/data/com.android.providers.settings/databases/settings.db"
 
         system_settings = {}
-        out = self.adb.shell("sqlite3 %s \"select * from %s\"" % (db_name, "system"))
+        out = self.adb.shell('sqlite3 %s "select * from %s"' % (db_name, "system"))
         out_lines = out.splitlines()
         for line in out_lines:
-            segs = line.split('|')
+            segs = line.split("|")
             if len(segs) != 3:
                 continue
             system_settings[segs[1]] = segs[2]
 
         secure_settings = {}
-        out = self.adb.shell("sqlite3 %s \"select * from %s\"" % (db_name, "secure"))
+        out = self.adb.shell('sqlite3 %s "select * from %s"' % (db_name, "secure"))
         out_lines = out.splitlines()
         for line in out_lines:
-            segs = line.split('|')
+            segs = line.split("|")
             if len(segs) != 3:
                 continue
             secure_settings[segs[1]] = segs[2]
 
-        self.settings['system'] = system_settings
-        self.settings['secure'] = secure_settings
+        self.settings["system"] = system_settings
+        self.settings["secure"] = secure_settings
         return self.settings
 
     def change_settings(self, table_name, name, value):
@@ -460,8 +476,9 @@ class Device(object):
         """
         db_name = "/data/data/com.android.providers.settings/databases/settings.db"
 
-        self.adb.shell("sqlite3 %s \"update '%s' set value='%s' where name='%s'\""
-                       % (db_name, table_name, value, name))
+        self.adb.shell(
+            "sqlite3 %s \"update '%s' set value='%s' where name='%s'\"" % (db_name, table_name, value, name)
+        )
         return True
 
     def send_intent(self, intent):
@@ -509,7 +526,7 @@ class Device(object):
         Get current activity
         """
         r = self.adb.shell("dumpsys activity activities")
-        activity_line_re = re.compile(r'\*\s*Hist\s*#\d+:\s*ActivityRecord\{[^ ]+\s*[^ ]+\s*([^ ]+)\s*t(\d+)}')
+        activity_line_re = re.compile(r"\*\s*Hist\s*#\d+:\s*ActivityRecord\{[^ ]+\s*[^ ]+\s*([^ ]+)\s*t(\d+)}")
         m = activity_line_re.search(r)
         if m:
             return m.group(1)
@@ -546,11 +563,11 @@ class Device(object):
         task_to_activities = {}
 
         lines = self.adb.shell("dumpsys activity activities").splitlines()
-        activity_line_re = re.compile(r'\*\s*Hist\s*#\d+:\s*ActivityRecord\{[^ ]+\s*[^ ]+\s*([^ ]+)\s*t(\d+)}')
+        activity_line_re = re.compile(r"\*\s*Hist\s*#\d+:\s*ActivityRecord\{[^ ]+\s*[^ ]+\s*([^ ]+)\s*t(\d+)}")
 
         for line in lines:
             line = line.strip()
-            activity_line_task_re = re.compile(r'^\s*Task\s*id\s*#(\d+)|^\s*Task\{\w+\s*#(\d+)')
+            activity_line_task_re = re.compile(r"^\s*Task\s*id\s*#(\d+)|^\s*Task\{\w+\s*#(\d+)")
             activity_line_task_m = activity_line_task_re.match(line)
             if activity_line_task_m:
                 if activity_line_task_m.group(1):
@@ -558,7 +575,7 @@ class Device(object):
                 else:
                     task_id = activity_line_task_m.group(2)
                 task_to_activities[task_id] = []
-            elif re.match(r'\*\s*Hist\s*#', line):
+            elif re.match(r"\*\s*Hist\s*#", line):
                 m = activity_line_re.match(line)
                 if m:
                     activity = m.group(1)
@@ -575,9 +592,9 @@ class Device(object):
         :return: list of services
         """
         services = []
-        dat = self.adb.shell('dumpsys activity services')
+        dat = self.adb.shell("dumpsys activity services")
         lines = dat.splitlines()
-        service_re = re.compile('^.+ServiceRecord{.+ ([A-Za-z0-9_.]+)/([A-Za-z0-9_.]+)')
+        service_re = re.compile(r"^.+ServiceRecord{.+ ([A-Za-z0-9_.]+)/([A-Za-z0-9_.]+)")
 
         for line in lines:
             m = service_re.search(line)
@@ -593,8 +610,8 @@ class Device(object):
         :param package_name:
         :return: package path of app in device
         """
-        dat = self.adb.shell('pm path %s' % package_name)
-        package_path_re = re.compile('^package:(.+)$')
+        dat = self.adb.shell("pm path %s" % package_name)
+        package_path_re = re.compile(r"^package:(.+)$")
         m = package_path_re.match(dat)
         if m:
             path = m.group(1)
@@ -606,9 +623,9 @@ class Device(object):
         use monkey to start activity
         @param package: package name of target activity
         """
-        cmd = 'monkey'
+        cmd = "monkey"
         if package:
-            cmd += ' -p %s' % package
+            cmd += " -p %s" % package
         out = self.adb.shell(cmd)
         if re.search(r"(Error)|(Cannot find 'App')", out, re.IGNORECASE | re.MULTILINE):
             raise RuntimeError(out)
@@ -636,8 +653,9 @@ class Device(object):
                 install_p.terminate()
                 return
 
-        dumpsys_p = subprocess.Popen(["adb", "-s", self.serial, "shell",
-                                      "dumpsys", "package", package_name], stdout=subprocess.PIPE)
+        dumpsys_p = subprocess.Popen(
+            ["adb", "-s", self.serial, "shell", "dumpsys", "package", package_name], stdout=subprocess.PIPE
+        )
         dumpsys_lines = []
         while True:
             line = dumpsys_p.stdout.readline()
@@ -660,8 +678,8 @@ class Device(object):
     def __parse_main_activity_from_dumpsys_lines(lines):
         main_activity = None
         activity_line_re = re.compile("[^ ]+ ([^ ]+)/([^ ]+) filter [^ ]+")
-        action_re = re.compile("Action: \"([^ ]+)\"")
-        category_re = re.compile("Category: \"([^ ]+)\"")
+        action_re = re.compile('Action: "([^ ]+)"')
+        category_re = re.compile('Category: "([^ ]+)"')
 
         activities = {}
 
@@ -674,10 +692,7 @@ class Device(object):
             line = line.strip()
             m = activity_line_re.match(line)
             if m:
-                activities[cur_activity] = {
-                    "actions": cur_actions,
-                    "categories": cur_categories
-                }
+                activities[cur_activity] = {"actions": cur_actions, "categories": cur_categories}
                 cur_package = m.group(1)
                 cur_activity = m.group(2)
                 if cur_activity.startswith("."):
@@ -694,14 +709,13 @@ class Device(object):
                         cur_categories.append(m2.group(1))
 
         if cur_activity is not None:
-            activities[cur_activity] = {
-                "actions": cur_actions,
-                "categories": cur_categories
-            }
+            activities[cur_activity] = {"actions": cur_actions, "categories": cur_categories}
 
         for activity in activities:
-            if "android.intent.action.MAIN" in activities[activity]["actions"] \
-                    and "android.intent.category.LAUNCHER" in activities[activity]["categories"]:
+            if (
+                "android.intent.action.MAIN" in activities[activity]["actions"]
+                and "android.intent.category.LAUNCHER" in activities[activity]["categories"]
+            ):
                 main_activity = activity
         return main_activity
 
@@ -784,7 +798,6 @@ class Device(object):
         if self.output_dir is None:
             return None
 
-        from datetime import datetime
         tag = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         local_image_dir = os.path.join(self.output_dir, "temp")
         if not os.path.exists(local_image_dir):
@@ -793,7 +806,7 @@ class Device(object):
         if self.adapters[self.minicap] and self.minicap.last_screen:
             # minicap use jpg format
             local_image_path = os.path.join(local_image_dir, "screen_%s.jpg" % tag)
-            with open(local_image_path, 'wb') as local_image_file:
+            with open(local_image_path, "wb") as local_image_file:
                 local_image_file.write(self.minicap.last_screen)
             return local_image_path
         else:
@@ -816,17 +829,17 @@ class Device(object):
             background_services = self.get_service_names()
             screenshot_path = self.take_screenshot()
             self.logger.debug("finish getting current device state...")
-            from .device_state import DeviceState
-            current_state = DeviceState(self,
-                                        views=views,
-                                        foreground_activity=foreground_activity,
-                                        activity_stack=activity_stack,
-                                        background_services=background_services,
-                                        screenshot_path=screenshot_path)
+            current_state = DeviceState(
+                self,
+                views=views,
+                foreground_activity=foreground_activity,
+                activity_stack=activity_stack,
+                background_services=background_services,
+                screenshot_path=screenshot_path,
+            )
         except Exception as e:
             self.logger.warning("exception in get_current_state: %s" % e)
-            import traceback
-            traceback.print_exc()
+            self.logger.exception(e)
         self.logger.debug("finish getting current device state...")
         self.last_know_state = current_state
         if not current_state:
@@ -895,7 +908,6 @@ class Device(object):
         get a random port on host machine to establish connection
         :return: a port number
         """
-        import socket
         temp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         temp_sock.bind(("", 0))
         port = temp_sock.getsockname()[1]
