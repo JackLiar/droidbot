@@ -1,9 +1,17 @@
 import copy
+import hashlib
+import json
 import math
 import os
+import shutil
+from datetime import datetime
+from xmlrpc.client import ServerProxy
 
+from PIL import Image
+
+from .app import App
+from .input_event import LongTouchEvent, ScrollEvent, SetTextEvent, TouchEvent
 from .utils import md5
-from .input_event import TouchEvent, LongTouchEvent, ScrollEvent, SetTextEvent, KeyEvent
 
 
 class DeviceState(object):
@@ -18,7 +26,6 @@ class DeviceState(object):
         self.activity_stack = activity_stack if isinstance(activity_stack, list) else []
         self.background_services = background_services
         if tag is None:
-            from datetime import datetime
             tag = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         self.tag = tag
         self.screenshot_path = screenshot_path
@@ -51,7 +58,6 @@ class DeviceState(object):
         return state
 
     def to_json(self):
-        import json
         return json.dumps(self.to_dict(), indent=2)
 
     def __parse_views(self, raw_views):
@@ -108,8 +114,6 @@ class DeviceState(object):
 
     def __get_state_str_raw(self):
         if self.device.humanoid is not None:
-            import json
-            from xmlrpc.client import ServerProxy
             proxy = ServerProxy("http://%s/" % self.device.humanoid)
             return proxy.render_view_tree(json.dumps({
                 "view_tree": self.view_tree,
@@ -126,8 +130,6 @@ class DeviceState(object):
 
     def __get_content_free_state_str(self):
         if self.device.humanoid is not None:
-            import json
-            from xmlrpc.client import ServerProxy
             proxy = ServerProxy("http://%s/" % self.device.humanoid)
             state_str = proxy.render_content_free_view_tree(json.dumps({
                 "view_tree": self.view_tree,
@@ -141,7 +143,6 @@ class DeviceState(object):
                 if view_signature:
                     view_signatures.add(view_signature)
             state_str = "%s{%s}" % (self.foreground_activity, ",".join(sorted(view_signatures)))
-        import hashlib
         return hashlib.md5(state_str.encode('utf-8')).hexdigest()
 
     def __get_search_content(self):
@@ -182,10 +183,8 @@ class DeviceState(object):
             state_json_file = open(dest_state_json_path, "w")
             state_json_file.write(self.to_json())
             state_json_file.close()
-            import shutil
             shutil.copyfile(self.screenshot_path, dest_screenshot_path)
             self.screenshot_path = dest_screenshot_path
-            # from PIL.Image import Image
             # if isinstance(self.screenshot_path, Image):
             #     self.screenshot_path.save(dest_screenshot_path)
         except Exception as e:
@@ -207,7 +206,6 @@ class DeviceState(object):
                 view_file_path = "%s/view_%s.png" % (output_dir, view_str)
             if os.path.exists(view_file_path):
                 return
-            from PIL import Image
             # Load the original image:
             view_bound = view_dict['bounds']
             original_img = Image.open(self.screenshot_path)
@@ -286,7 +284,6 @@ class DeviceState(object):
         child_strs.sort()
         view_str = "Activity:%s\nSelf:%s\nParents:%s\nChildren:%s" % \
                    (self.foreground_activity, view_signature, "//".join(parent_strs), "||".join(child_strs))
-        import hashlib
         view_str = hashlib.md5(view_str.encode('utf-8')).hexdigest()
         view_dict['view_str'] = view_str
         return view_str
@@ -389,7 +386,7 @@ class DeviceState(object):
             children.union(children_of_child)
         return children
 
-    def get_app_activity_depth(self, app):
+    def get_app_activity_depth(self, app: App) -> int:
         """
         Get the depth of the app's activity in the activity stack
         :param app: App

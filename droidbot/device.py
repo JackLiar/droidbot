@@ -126,12 +126,12 @@ class Device(object):
             adapter_name = adapter.__class__.__name__
             adapter_enabled = self.adapters[adapter]
             if not adapter_enabled:
-                print("[CONNECTION] %s is not enabled." % adapter_name)
+                self.logger.info("[CONNECTION] %s is not enabled." % adapter_name)
             else:
                 if adapter.check_connectivity():
-                    print("[CONNECTION] %s is enabled and connected." % adapter_name)
+                    self.logger.info("[CONNECTION] %s is enabled and connected." % adapter_name)
                 else:
-                    print("[CONNECTION] %s is enabled but not connected." % adapter_name)
+                    self.logger.warn("[CONNECTION] %s is enabled but not connected." % adapter_name)
 
     def wait_for_device(self):
         """
@@ -525,7 +525,7 @@ class Device(object):
         """
         Get current activity
         """
-        r = self.adb.shell("dumpsys activity activities")
+        r = self.adb.shell(["dumpsys", "activity", "activities"])
         activity_line_re = re.compile(r"\*\s*Hist\s*#\d+:\s*ActivityRecord\{[^ ]+\s*[^ ]+\s*([^ ]+)\s*t(\d+)}")
         m = activity_line_re.search(r)
         if m:
