@@ -1,0 +1,31 @@
+image: python:3.12
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+stages:
+  - build
+
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+build:
+  stage: build
+  before_script:
+    - python --version
+    - pip --version
+    - mkdir -p ~/.config/pip
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
+    - pip install poetry
+  script:
+    - poetry install
+    - droidbot --help
+    - poetry build
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - dist/*
