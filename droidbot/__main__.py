@@ -6,8 +6,9 @@ import os
 
 from androguard.util import set_log
 
-from droidbot import DroidBot, env_manager, input_manager, input_policy
+from droidbot import DroidBot, env_manager, input_manager
 from droidbot.droidmaster import DroidMaster
+from droidbot.input_policy import InputPolicyName
 from droidbot.utils import LOG_FORMAT
 
 
@@ -30,9 +31,9 @@ def parse_args():
     #                          "dummy\tadd some fake contacts, SMS log, call log; \n"
     #                          "static\tset environment based on static analysis result; \n"
     #                          "<file>\tget environment policy from a json file.\n")
-    parser.add_argument("-policy", action="store", dest="input_policy", default=input_manager.DEFAULT_POLICY,
+    parser.add_argument("-policy", action="store", dest="input_policy", default=InputPolicyName.default().value,
                         help='Policy to use for test input generation. '
-                             'Default: %s.\nSupported policies:\n' % input_manager.DEFAULT_POLICY +
+                             'Default: %s.\nSupported policies:\n' % InputPolicyName.default().value +
                              '  \"%s\" -- No event will be sent, user should interact manually with device; \n'
                              '  \"%s\" -- Use "adb shell monkey" to send events; \n'
                              '  \"%s\" -- Explore UI using a naive depth-first strategy;\n'
@@ -41,12 +42,12 @@ def parse_args():
                              '  \"%s\" -- Explore UI using a greedy breadth-first strategy;\n'
                              %
                              (
-                                 input_policy.POLICY_NONE,
-                                 input_policy.POLICY_MONKEY,
-                                 input_policy.POLICY_NAIVE_DFS,
-                                 input_policy.POLICY_GREEDY_DFS,
-                                 input_policy.POLICY_NAIVE_BFS,
-                                 input_policy.POLICY_GREEDY_BFS,
+                                 InputPolicyName.NONE.value,
+                                 InputPolicyName.MONKEY.value,
+                                 InputPolicyName.NAIVE_DFS.value,
+                                 InputPolicyName.GREEDY_DFS.value,
+                                 InputPolicyName.NAIVE_BFS.value,
+                                 InputPolicyName.GREEDY_BFS.value,
                              ))
 
     # for distributed DroidBot
@@ -130,7 +131,7 @@ def main():
             output_dir=opts.output_dir,
             # env_policy=opts.env_policy,
             env_policy=env_manager.EnvPolicy.POLICY_NONE,
-            policy_name=opts.input_policy,
+            policy_name=InputPolicyName(opts.input_policy),
             random_input=opts.random_input,
             script_path=opts.script_path,
             event_interval=opts.interval,
@@ -157,7 +158,7 @@ def main():
             output_dir=opts.output_dir,
             # env_policy=opts.env_policy,
             env_policy=env_manager.EnvPolicy.POLICY_NONE,
-            policy_name=opts.input_policy,
+            policy_name=InputPolicyName(opts.input_policy),
             random_input=opts.random_input,
             script_path=opts.script_path,
             event_interval=opts.interval,

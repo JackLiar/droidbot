@@ -17,6 +17,7 @@ from .app import App
 from .device import Device
 from .env_manager import AppEnvManager, EnvPolicy
 from .input_manager import InputManager
+from .input_policy import InputPolicyName
 
 
 class DroidBot(object):
@@ -34,7 +35,7 @@ class DroidBot(object):
         is_emulator=False,
         output_dir: PathLike = None,
         env_policy: EnvPolicy = EnvPolicy.default(),
-        policy_name: str = None,
+        policy_name: InputPolicyName = InputPolicyName.default(),
         random_input=False,
         script_path: Optional[PathLike] = None,
         event_count: Optional[int] = None,

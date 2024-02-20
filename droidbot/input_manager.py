@@ -4,13 +4,15 @@ import subprocess
 import time
 
 from .input_event import EventLog
-from .input_policy import UtgBasedInputPolicy, UtgNaiveSearchPolicy, UtgGreedySearchPolicy, \
-                         UtgReplayPolicy, \
-                         ManualPolicy, \
-                         POLICY_NAIVE_DFS, POLICY_GREEDY_DFS, \
-                         POLICY_NAIVE_BFS, POLICY_GREEDY_BFS, \
-                         POLICY_REPLAY, POLICY_MEMORY_GUIDED, POLICY_LLM_GUIDED, \
-                         POLICY_MANUAL, POLICY_MONKEY, POLICY_NONE
+from .input_policy import (
+    POLICY_GREEDY_DFS,
+    InputPolicyName,
+    ManualPolicy,
+    UtgBasedInputPolicy,
+    UtgGreedySearchPolicy,
+    UtgNaiveSearchPolicy,
+    UtgReplayPolicy,
+)
 
 DEFAULT_POLICY = POLICY_GREEDY_DFS
 DEFAULT_EVENT_INTERVAL = 1
@@ -64,23 +66,23 @@ class InputManager(object):
         self.profiling_method = profiling_method
 
     def get_input_policy(self, device, app, master):
-        if self.policy_name == POLICY_NONE:
+        if self.policy_name == InputPolicyName.NONE:
             input_policy = None
-        elif self.policy_name == POLICY_MONKEY:
+        elif self.policy_name == InputPolicyName.MONKEY:
             input_policy = None
-        elif self.policy_name in [POLICY_NAIVE_DFS, POLICY_NAIVE_BFS]:
+        elif self.policy_name in [InputPolicyName.NAIVE_DFS, InputPolicyName.NAIVE_BFS]:
             input_policy = UtgNaiveSearchPolicy(device, app, self.random_input, self.policy_name)
-        elif self.policy_name in [POLICY_GREEDY_DFS, POLICY_GREEDY_BFS]:
+        elif self.policy_name in [InputPolicyName.GREEDY_DFS, InputPolicyName.GREEDY_BFS]:
             input_policy = UtgGreedySearchPolicy(device, app, self.random_input, self.policy_name)
-        elif self.policy_name == POLICY_MEMORY_GUIDED:
+        elif self.policy_name == InputPolicyName.MEMORY_GUIDED:
             from .input_policy2 import MemoryGuidedPolicy
             input_policy = MemoryGuidedPolicy(device, app, self.random_input)
-        elif self.policy_name == POLICY_LLM_GUIDED:
+        elif self.policy_name == InputPolicyName.LLM_GUIDED:
             from .input_policy3 import LLM_Guided_Policy
             input_policy = LLM_Guided_Policy(device, app, self.random_input)
-        elif self.policy_name == POLICY_REPLAY:
+        elif self.policy_name == InputPolicyName.REPLAY:
             input_policy = UtgReplayPolicy(device, app, self.replay_output)
-        elif self.policy_name == POLICY_MANUAL:
+        elif self.policy_name == InputPolicyName.MANUAL:
             input_policy = ManualPolicy(device, app)
         else:
             self.logger.warning("No valid input policy specified. Using policy \"none\".")
@@ -112,18 +114,18 @@ class InputManager(object):
         """
         start sending event
         """
-        self.logger.info("start sending events, policy is %s" % self.policy_name)
+        self.logger.info(f"start sending events, policy is {self.policy_name}")
 
         try:
             if self.policy is not None:
                 self.policy.start(self)
-            elif self.policy_name == POLICY_NONE:
+            elif self.policy_name == InputPolicyName.NONE:
                 self.device.start_app(self.app)
                 if self.event_count == 0:
                     return
                 while self.enabled:
                     time.sleep(1)
-            elif self.policy_name == POLICY_MONKEY:
+            elif self.policy_name == InputPolicyName.MONKEY:
                 throttle = self.event_interval * 1000
                 monkey_cmd = "adb -s %s shell monkey %s --ignore-crashes --ignore-security-exceptions" \
                              " --throttle %d -v %d" % \
@@ -141,7 +143,7 @@ class InputManager(object):
                 # may be disturbed from outside
                 if self.monkey is not None:
                     self.monkey.wait()
-            elif self.policy_name == POLICY_MANUAL:
+            elif self.policy_name == InputPolicyName.MANUAL:
                 self.device.start_app(self.app)
                 while self.enabled:
                     keyboard_input = input("press ENTER to save current state, type q to exit...")

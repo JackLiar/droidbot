@@ -4,6 +4,7 @@ import os
 import random
 import time
 from abc import abstractmethod
+from enum import Enum
 from xmlrpc.client import ServerProxy
 
 from .app import App
@@ -28,7 +29,24 @@ EVENT_FLAG_EXPLORE = "+explore"
 EVENT_FLAG_NAVIGATE = "+navigate"
 EVENT_FLAG_TOUCH = "+touch"
 
-# Policy taxanomy
+class InputPolicyName(Enum):
+    '''Policy taxanomy'''
+    NAIVE_DFS = "dfs_naive"
+    GREEDY_DFS = "dfs_greedy"
+    NAIVE_BFS = "bfs_naive"
+    GREEDY_BFS = "bfs_greedy"
+    REPLAY = "replay"
+    MANUAL = "manual"
+    MONKEY = "monkey"
+    NONE = "none"
+    MEMORY_GUIDED = "memory_guided"  # implemented in input_policy2
+    LLM_GUIDED = "llm_guided"  # implemented in input_policy3
+
+    @classmethod
+    def default(cls):
+        return InputPolicyName.GREEDY_DFS
+
+# Keep these for compatbility
 POLICY_NAIVE_DFS = "dfs_naive"
 POLICY_GREEDY_DFS = "dfs_greedy"
 POLICY_NAIVE_BFS = "bfs_naive"
