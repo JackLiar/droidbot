@@ -19,7 +19,7 @@ class EnvPolicy(Enum):
 
     @classmethod
     def default(cls):
-        EnvPolicy.POLICY_NONE
+        return EnvPolicy.POLICY_NONE
 
 
 class UnknownEnvException(Exception):
