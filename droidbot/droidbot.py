@@ -16,7 +16,7 @@ import pkg_resources
 from .app import App
 from .device import Device
 from .env_manager import AppEnvManager, EnvPolicy
-from .input_manager import DEFAULT_EVENT_COUNT, InputManager
+from .input_manager import DEFAULT_EVENT_COUNT, DEFAULT_EVENT_INTERVAL, InputManager
 from .input_policy import InputPolicyName
 
 
@@ -39,7 +39,7 @@ class DroidBot(object):
         random_input=False,
         script_path: Optional[PathLike] = None,
         event_count: int = DEFAULT_EVENT_COUNT,
-        event_interval: Optional[float] = None,
+        event_interval: float = DEFAULT_EVENT_INTERVAL,
         timeout: float = 0.0,
         keep_app=False,
         keep_env=False,
