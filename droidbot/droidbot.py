@@ -188,13 +188,14 @@ class DroidBot(object):
             self.droidbox.stop()
         if self.device:
             self.device.disconnect()
-        if not self.keep_env:
-            self.device.tear_down()
-        if not self.keep_app:
-            self.device.uninstall_app(self.app)
+            if not self.keep_env:
+                self.device.tear_down()
+            if not self.keep_app:
+                self.device.uninstall_app(self.app)
         if hasattr(self.input_manager.policy, "master") and self.input_manager.policy.master:
             proxy = xmlrpc.client.ServerProxy(self.input_manager.policy.master)
-            proxy.stop_worker(self.device.serial)
+            if self.device:
+                proxy.stop_worker(self.device.serial)
 
 
 class DroidBotException(Exception):
