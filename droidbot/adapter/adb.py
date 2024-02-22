@@ -55,6 +55,7 @@ class ADB(Adapter):
 
             device = Device()
 
+        self.serial = device.serial
         self.cmd_prefix = ["adb", "-s", device.serial]
 
     def run_cmd(self, extra_args: Union[str, List[str]]) -> str:
@@ -110,7 +111,8 @@ class ADB(Adapter):
         """
         connect adb
         """
-        self.logger.info("connected")
+        subprocess.check_output(["adb", "connect", self.serial])
+        self.logger.info(f"connected to {self.serial}")
 
     def disconnect(self):
         """
