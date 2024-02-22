@@ -4,6 +4,7 @@ import json
 import math
 import os
 import shutil
+from dataclasses import dataclass, field
 from datetime import datetime
 from os import PathLike
 from typing import Dict, List, Optional, Self
@@ -14,6 +15,47 @@ from PIL import Image
 from .app import App
 from .input_event import LongTouchEvent, ScrollEvent, SetTextEvent, TouchEvent
 from .utils import md5
+
+
+@dataclass
+class View:
+    package: str
+    visible: bool
+    checkable: bool
+    child_count: int
+    editable: bool
+    clickable: bool
+    is_password: bool
+    focusable: bool
+    enabled: bool
+    content_description: Optional[str] = None
+    children: List[Self] = field(default_factory=list)
+    focused: bool = False
+    bounds: List[int] = field(default_factory=list)
+    resource_id: Optional[str] = None
+    checked: bool = False
+    text: Optional[str] = None
+    class_name: Optional[str] = None
+    scrollable: bool = False
+    selected: bool = False
+    long_clickable: bool = False
+
+    def serialize(self):
+        class_name = self.class_name
+        setattr(self, 'class', class_name)
+        delattr(self, 'class_name')
+        serialized_data = json.dumps(self.__dict__)
+        delattr(self, 'class')
+        self.class_name = class_name
+        return serialized_data
+
+    @classmethod
+    def deserialize(cls, json_str):
+        data = json.loads(json_str)
+        class_name = data.pop('class', None)
+        if class_name:
+            data['class_name'] = class_name
+        return cls(**data)
 
 
 class DeviceState(object):
