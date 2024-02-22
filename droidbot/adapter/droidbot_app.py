@@ -1,10 +1,17 @@
-import logging
-import socket
-import subprocess
-import time
+import copy
 import json
+import logging
+import re
+import socket
 import struct
+import subprocess
+import threading
+import time
 import traceback
+from typing import Dict, List, Optional
+
+import pkg_resources
+
 from .adapter import Adapter
 
 DROIDBOT_APP_REMOTE_ADDR = "tcp:7336"
@@ -55,7 +62,6 @@ class DroidBotAppConn(Adapter):
         self.enable_accessibility_hard = device.enable_accessibility_hard
         self.ignore_ad = device.ignore_ad
         if self.ignore_ad:
-            import re
             self.__first_cap_re = re.compile("(.)([A-Z][a-z]+)")
             self.__all_cap_re = re.compile("([a-z0-9])([A-Z])")
 
@@ -71,7 +77,6 @@ class DroidBotAppConn(Adapter):
         else:
             # install droidbot app
             try:
-                import pkg_resources
                 droidbot_app_path = pkg_resources.resource_filename("droidbot", "resources/droidbotApp.apk")
                 install_cmd = ["install", droidbot_app_path]
                 self.device.adb.run_cmd(install_cmd)
@@ -106,7 +111,6 @@ class DroidBotAppConn(Adapter):
             forward_cmd = "adb %s forward tcp:%d %s" % (serial_cmd, self.port, DROIDBOT_APP_REMOTE_ADDR)
             subprocess.check_call(forward_cmd.split())
             self.sock.connect((self.host, self.port))
-            import threading
             listen_thread = threading.Thread(target=self.listen_messages)
             listen_thread.start()
         except socket.error:
@@ -143,16 +147,15 @@ class DroidBotAppConn(Adapter):
                     message = message.decode()
                 self.handle_message(message)
             print("[CONNECTION] %s is disconnected" % self.__class__.__name__)
-        except Exception:
+        except EOF:
             if self.check_connectivity():
-                traceback.print_exc()
                 # clear self.last_acc_event
                 self.logger.warning("Restarting droidbot app")
                 self.last_acc_event = None
                 self.disconnect()
                 self.connect()
 
-    def handle_message(self, message):
+    def handle_message(self, message: str):
         acc_event_idx = message.find("AccEvent >>> ")
         if acc_event_idx >= 0:
             if acc_event_idx > 0:
@@ -187,13 +190,13 @@ class DroidBotAppConn(Adapter):
             try:
                 self.sock.close()
             except Exception as e:
-                print(e)
+                self.logger.exception(e)
         try:
             forward_remove_cmd = "adb -s %s forward --remove tcp:%d" % (self.device.serial, self.port)
             p = subprocess.Popen(forward_remove_cmd.split(), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             out, err = p.communicate()
         except Exception as e:
-            print(e)
+            self.logger.exception(e)
         self.__can_wait = False
 
     def __view_tree_to_list(self, view_tree, view_list):
@@ -223,7 +226,7 @@ class DroidBotAppConn(Adapter):
             children_ids.append(child_tree['temp_id'])
         view_tree['children'] = children_ids
 
-    def get_views(self):
+    def get_views(self)-> Optional[List[Dict]]:
         get_views_times = 0
         while not self.last_acc_event:
             self.logger.warning("last_acc_event is None, waiting")
@@ -236,7 +239,6 @@ class DroidBotAppConn(Adapter):
         if 'view_list' in self.last_acc_event:
             return self.last_acc_event['view_list']
 
-        import copy
         view_tree = copy.deepcopy(self.last_acc_event['root_node'])
         # print view_tree
         if not view_tree:
