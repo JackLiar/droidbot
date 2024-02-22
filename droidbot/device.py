@@ -836,6 +836,8 @@ class Device(object):
                 activity_stack=activity_stack,
                 background_services=background_services,
                 screenshot_path=screenshot_path,
+                width=self.get_width(refresh=True),
+                height=self.get_height(refresh=False),
             )
         except Exception as e:
             self.logger.warning("exception in get_current_state: %s" % e)

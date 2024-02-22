@@ -5,6 +5,8 @@ import math
 import os
 import shutil
 from datetime import datetime
+from os import PathLike
+from typing import Dict, List, Optional, Self
 from xmlrpc.client import ServerProxy
 
 from PIL import Image
@@ -19,16 +21,30 @@ class DeviceState(object):
     the state of the current device
     """
 
-    def __init__(self, device, views, foreground_activity, activity_stack, background_services,
-                 tag=None, screenshot_path=None):
+    def __init__(
+        self,
+        device,
+        views: List[Dict],
+        foreground_activity: str,
+        activity_stack: List[str],
+        background_services: List[str],
+        width: int,
+        height: int,
+        tag: Optional[str] = None,
+        screenshot_path: Optional[str] = None,
+    ) -> Self:
+        assert isinstance(activity_stack, list)
+        assert isinstance(background_services, list)
+
         self.device = device
         self.foreground_activity = foreground_activity
-        self.activity_stack = activity_stack if isinstance(activity_stack, list) else []
+        self.activity_stack = activity_stack
         self.background_services = background_services
         if tag is None:
             tag = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         self.tag = tag
         self.screenshot_path = screenshot_path
+
         self.views = self.__parse_views(views)
         self.view_tree = {}
         self.__assemble_view_tree(self.view_tree, self.views)
@@ -38,29 +54,31 @@ class DeviceState(object):
         self.search_content = self.__get_search_content()
         self.text_representation = self.get_text_representation()
         self.possible_events = None
-        self.width = device.get_width(refresh=True)
-        self.height = device.get_height(refresh=False)
+        self.width = width
+        self.height = height
 
     @property
     def activity_short_name(self):
-        return self.foreground_activity.split('.')[-1]
+        return self.foreground_activity.split(".")[-1]
 
     def to_dict(self):
-        state = {'tag': self.tag,
-                 'state_str': self.state_str,
-                 'state_str_content_free': self.structure_str,
-                 'foreground_activity': self.foreground_activity,
-                 'activity_stack': self.activity_stack,
-                 'background_services': self.background_services,
-                 'width': self.width,
-                 'height': self.height,
-                 'views': self.views}
+        state = {
+            "tag": self.tag,
+            "state_str": self.state_str,
+            "state_str_content_free": self.structure_str,
+            "foreground_activity": self.foreground_activity,
+            "activity_stack": self.activity_stack,
+            "background_services": self.background_services,
+            "width": self.width,
+            "height": self.height,
+            "views": self.views,
+        }
         return state
 
     def to_json(self):
         return json.dumps(self.to_dict(), indent=2)
 
-    def __parse_views(self, raw_views):
+    def __parse_views(self, raw_views: List[Dict]):
         views = []
         if not raw_views or len(raw_views) == 0:
             return views
@@ -75,8 +93,8 @@ class DeviceState(object):
         return views
 
     def __assemble_view_tree(self, root_view, views):
-        if not len(self.view_tree): # bootstrap
-            if not len(views): # to fix if views is empty
+        if not len(self.view_tree):  # bootstrap
+            if not len(views):  # to fix if views is empty
                 return
             self.view_tree = copy.deepcopy(views[0])
             self.__assemble_view_tree(self.view_tree, views)
@@ -97,15 +115,15 @@ class DeviceState(object):
     def __calculate_depth(views):
         root_view = None
         for view in views:
-            if DeviceState.__safe_dict_get(view, 'parent') == -1:
+            if DeviceState.__safe_dict_get(view, "parent") == -1:
                 root_view = view
                 break
         DeviceState.__assign_depth(views, root_view, 0)
 
     @staticmethod
     def __assign_depth(views, view_dict, depth):
-        view_dict['depth'] = depth
-        for view_id in DeviceState.__safe_dict_get(view_dict, 'children', []):
+        view_dict["depth"] = depth
+        for view_id in DeviceState.__safe_dict_get(view_dict, "children", []):
             DeviceState.__assign_depth(views, views[view_id], depth + 1)
 
     def __get_state_str(self):
@@ -115,27 +133,33 @@ class DeviceState(object):
     def __get_state_str_raw(self):
         if self.device.humanoid is not None:
             proxy = ServerProxy("http://%s/" % self.device.humanoid)
-            return proxy.render_view_tree(json.dumps({
-                "view_tree": self.view_tree,
-                "screen_res": [self.device.display_info["width"],
-                               self.device.display_info["height"]]
-            }))
+            return proxy.render_view_tree(
+                json.dumps(
+                    {
+                        "view_tree": self.view_tree,
+                        "screen_res": [self.device.display_info["width"], self.device.display_info["height"]],
+                    }
+                )
+            )
         else:
             view_signatures = set()
             for view in self.views:
                 view_signature = DeviceState.__get_view_signature(view)
                 if view_signature:
                     view_signatures.add(view_signature)
-            return "%s{%s}" % (self.foreground_activity, ",".join(sorted(view_signatures)))
+            return f"{self.foreground_activity}{','.join(sorted(view_signatures))}"
 
     def __get_content_free_state_str(self):
         if self.device.humanoid is not None:
             proxy = ServerProxy("http://%s/" % self.device.humanoid)
-            state_str = proxy.render_content_free_view_tree(json.dumps({
-                "view_tree": self.view_tree,
-                "screen_res": [self.device.display_info["width"],
-                               self.device.display_info["height"]]
-            }))
+            state_str = proxy.render_content_free_view_tree(
+                json.dumps(
+                    {
+                        "view_tree": self.view_tree,
+                        "screen_res": [self.device.display_info["width"], self.device.display_info["height"]],
+                    }
+                )
+            )
         else:
             view_signatures = set()
             for view in self.views:
@@ -143,15 +167,17 @@ class DeviceState(object):
                 if view_signature:
                     view_signatures.add(view_signature)
             state_str = "%s{%s}" % (self.foreground_activity, ",".join(sorted(view_signatures)))
-        return hashlib.md5(state_str.encode('utf-8')).hexdigest()
+        return hashlib.md5(state_str.encode("utf-8")).hexdigest()
 
     def __get_search_content(self):
         """
         get a text for searching the state
         :return: str
         """
-        words = [",".join(self.__get_property_from_all_views("resource_id")),
-                 ",".join(self.__get_property_from_all_views("text"))]
+        words = [
+            ",".join(self.__get_property_from_all_views("resource_id")),
+            ",".join(self.__get_property_from_all_views("text")),
+        ]
         return "\n".join(words)
 
     def __get_property_from_all_views(self, property_name):
@@ -166,7 +192,7 @@ class DeviceState(object):
                 property_values.add(property_value)
         return property_values
 
-    def save2dir(self, output_dir=None):
+    def save2dir(self, output_dir: Optional[PathLike] = None):
         try:
             if output_dir is None:
                 if self.device.output_dir is None:
@@ -175,14 +201,15 @@ class DeviceState(object):
                     output_dir = os.path.join(self.device.output_dir, "states")
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
-            dest_state_json_path = "%s/state_%s.json" % (output_dir, self.tag)
+            dest_state_json_path = f"{output_dir}/state_{self.tag}.json"
             if self.device.adapters[self.device.minicap]:
-                dest_screenshot_path = "%s/screen_%s.jpg" % (output_dir, self.tag)
+                dest_screenshot_path = f"{output_dir}/screen_{self.tag}.jpg"
             else:
-                dest_screenshot_path = "%s/screen_%s.png" % (output_dir, self.tag)
-            state_json_file = open(dest_state_json_path, "w")
-            state_json_file.write(self.to_json())
-            state_json_file.close()
+                dest_screenshot_path = f"{output_dir}/screen_{self.tag}.png"
+
+            with open(dest_state_json_path, "w") as fp:
+                fp.write(self.to_json())
+
             shutil.copyfile(self.screenshot_path, dest_screenshot_path)
             self.screenshot_path = dest_screenshot_path
             # if isinstance(self.screenshot_path, Image):
@@ -199,7 +226,7 @@ class DeviceState(object):
                     output_dir = os.path.join(self.device.output_dir, "views")
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
-            view_str = view_dict['view_str']
+            view_str = view_dict["view_str"]
             if self.device.adapters[self.device.minicap]:
                 view_file_path = "%s/view_%s.jpg" % (output_dir, view_str)
             else:
@@ -207,18 +234,22 @@ class DeviceState(object):
             if os.path.exists(view_file_path):
                 return
             # Load the original image:
-            view_bound = view_dict['bounds']
+            view_bound = view_dict["bounds"]
             original_img = Image.open(self.screenshot_path)
             # view bound should be in original image bound
-            view_img = original_img.crop((min(original_img.width - 1, max(0, view_bound[0][0])),
-                                          min(original_img.height - 1, max(0, view_bound[0][1])),
-                                          min(original_img.width, max(0, view_bound[1][0])),
-                                          min(original_img.height, max(0, view_bound[1][1]))))
+            view_img = original_img.crop(
+                (
+                    min(original_img.width - 1, max(0, view_bound[0][0])),
+                    min(original_img.height - 1, max(0, view_bound[0][1])),
+                    min(original_img.width, max(0, view_bound[1][0])),
+                    min(original_img.height, max(0, view_bound[1][1])),
+                )
+            )
             view_img.convert("RGB").save(view_file_path)
         except Exception as e:
             self.device.logger.warning(e)
 
-    def is_different_from(self, another_state):
+    def is_different_from(self, another_state: Self):
         """
         compare this state with another
         @param another_state: DeviceState
@@ -227,27 +258,28 @@ class DeviceState(object):
         return self.state_str != another_state.state_str
 
     @staticmethod
-    def __get_view_signature(view_dict):
+    def __get_view_signature(view_dict: Dict):
         """
         get the signature of the given view
         @param view_dict: dict, an element of list DeviceState.views
         @return:
         """
-        if 'signature' in view_dict:
-            return view_dict['signature']
+        if "signature" in view_dict:
+            return view_dict["signature"]
 
-        view_text = DeviceState.__safe_dict_get(view_dict, 'text', "None")
+        view_text = DeviceState.__safe_dict_get(view_dict, "text", "None")
         if view_text is None or len(view_text) > 50:
             view_text = "None"
 
-        signature = "[class]%s[resource_id]%s[text]%s[%s,%s,%s]" % \
-                    (DeviceState.__safe_dict_get(view_dict, 'class', "None"),
-                     DeviceState.__safe_dict_get(view_dict, 'resource_id', "None"),
-                     view_text,
-                     DeviceState.__key_if_true(view_dict, 'enabled'),
-                     DeviceState.__key_if_true(view_dict, 'checked'),
-                     DeviceState.__key_if_true(view_dict, 'selected'))
-        view_dict['signature'] = signature
+        signature = "[class]%s[resource_id]%s[text]%s[%s,%s,%s]" % (
+            DeviceState.__safe_dict_get(view_dict, "class", "None"),
+            DeviceState.__safe_dict_get(view_dict, "resource_id", "None"),
+            view_text,
+            DeviceState.__key_if_true(view_dict, "enabled"),
+            DeviceState.__key_if_true(view_dict, "checked"),
+            DeviceState.__key_if_true(view_dict, "selected"),
+        )
+        view_dict["signature"] = signature
         return signature
 
     @staticmethod
@@ -257,12 +289,13 @@ class DeviceState(object):
         @param view_dict: dict, an element of list DeviceState.views
         @return:
         """
-        if 'content_free_signature' in view_dict:
-            return view_dict['content_free_signature']
-        content_free_signature = "[class]%s[resource_id]%s" % \
-                                 (DeviceState.__safe_dict_get(view_dict, 'class', "None"),
-                                  DeviceState.__safe_dict_get(view_dict, 'resource_id', "None"))
-        view_dict['content_free_signature'] = content_free_signature
+        if "content_free_signature" in view_dict:
+            return view_dict["content_free_signature"]
+        content_free_signature = "[class]%s[resource_id]%s" % (
+            DeviceState.__safe_dict_get(view_dict, "class", "None"),
+            DeviceState.__safe_dict_get(view_dict, "resource_id", "None"),
+        )
+        view_dict["content_free_signature"] = content_free_signature
         return content_free_signature
 
     def __get_view_str(self, view_dict):
@@ -271,8 +304,8 @@ class DeviceState(object):
         @param view_dict: dict, an element of list DeviceState.views
         @return:
         """
-        if 'view_str' in view_dict:
-            return view_dict['view_str']
+        if "view_str" in view_dict:
+            return view_dict["view_str"]
         view_signature = DeviceState.__get_view_signature(view_dict)
         parent_strs = []
         for parent_id in self.get_all_ancestors(view_dict):
@@ -282,10 +315,14 @@ class DeviceState(object):
         for child_id in self.get_all_children(view_dict):
             child_strs.append(DeviceState.__get_view_signature(self.views[child_id]))
         child_strs.sort()
-        view_str = "Activity:%s\nSelf:%s\nParents:%s\nChildren:%s" % \
-                   (self.foreground_activity, view_signature, "//".join(parent_strs), "||".join(child_strs))
-        view_str = hashlib.md5(view_str.encode('utf-8')).hexdigest()
-        view_dict['view_str'] = view_str
+        view_str = "Activity:%s\nSelf:%s\nParents:%s\nChildren:%s" % (
+            self.foreground_activity,
+            view_signature,
+            "//".join(parent_strs),
+            "||".join(child_strs),
+        )
+        view_str = hashlib.md5(view_str.encode("utf-8")).hexdigest()
+        view_dict["view_str"] = view_str
         return view_str
 
     def __get_view_structure(self, view_dict):
@@ -294,29 +331,27 @@ class DeviceState(object):
         :param view_dict: dict, an element of list DeviceState.views
         :return: dict, representing the view structure
         """
-        if 'view_structure' in view_dict:
-            return view_dict['view_structure']
+        if "view_structure" in view_dict:
+            return view_dict["view_structure"]
         width = DeviceState.get_view_width(view_dict)
         height = DeviceState.get_view_height(view_dict)
-        class_name = DeviceState.__safe_dict_get(view_dict, 'class', "None")
+        class_name = DeviceState.__safe_dict_get(view_dict, "class", "None")
         children = {}
 
-        root_x = view_dict['bounds'][0][0]
-        root_y = view_dict['bounds'][0][1]
+        root_x = view_dict["bounds"][0][0]
+        root_y = view_dict["bounds"][0][1]
 
-        child_view_ids = self.__safe_dict_get(view_dict, 'children')
+        child_view_ids = self.__safe_dict_get(view_dict, "children")
         if child_view_ids:
             for child_view_id in child_view_ids:
                 child_view = self.views[child_view_id]
-                child_x = child_view['bounds'][0][0]
-                child_y = child_view['bounds'][0][1]
+                child_x = child_view["bounds"][0][0]
+                child_y = child_view["bounds"][0][1]
                 relative_x, relative_y = child_x - root_x, child_y - root_y
                 children["(%d,%d)" % (relative_x, relative_y)] = self.__get_view_structure(child_view)
 
-        view_structure = {
-            "%s(%d*%d)" % (class_name, width, height): children
-        }
-        view_dict['view_structure'] = view_structure
+        view_structure = {"%s(%d*%d)" % (class_name, width, height): children}
+        view_dict["view_structure"] = view_structure
         return view_structure
 
     @staticmethod
@@ -335,7 +370,7 @@ class DeviceState(object):
         @param view_dict: dict, an element of DeviceState.views
         @return: a pair of int
         """
-        bounds = view_dict['bounds']
+        bounds = view_dict["bounds"]
         return (bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2
 
     @staticmethod
@@ -345,7 +380,7 @@ class DeviceState(object):
         @param view_dict: dict, an element of DeviceState.views
         @return: int
         """
-        bounds = view_dict['bounds']
+        bounds = view_dict["bounds"]
         return int(math.fabs(bounds[0][0] - bounds[1][0]))
 
     @staticmethod
@@ -355,7 +390,7 @@ class DeviceState(object):
         @param view_dict: dict, an element of DeviceState.views
         @return: int
         """
-        bounds = view_dict['bounds']
+        bounds = view_dict["bounds"]
         return int(math.fabs(bounds[0][1] - bounds[1][1]))
 
     def get_all_ancestors(self, view_dict):
@@ -365,7 +400,7 @@ class DeviceState(object):
         :return: list of int, each int is an ancestor node id
         """
         result = []
-        parent_id = self.__safe_dict_get(view_dict, 'parent', -1)
+        parent_id = self.__safe_dict_get(view_dict, "parent", -1)
         if 0 <= parent_id < len(self.views):
             result.append(parent_id)
             result += self.get_all_ancestors(self.views[parent_id])
@@ -377,7 +412,7 @@ class DeviceState(object):
         :param view_dict: dict, an element of DeviceState.views
         :return: set of int, each int is a child node id
         """
-        children = self.__safe_dict_get(view_dict, 'children')
+        children = self.__safe_dict_get(view_dict, "children")
         if not children:
             return set()
         children = set(children)
@@ -411,39 +446,40 @@ class DeviceState(object):
         touch_exclude_view_ids = set()
         for view_dict in self.views:
             # exclude navigation bar if exists
-            if self.__safe_dict_get(view_dict, 'enabled') and \
-                    self.__safe_dict_get(view_dict, 'visible') and \
-                    self.__safe_dict_get(view_dict, 'resource_id') not in \
-               ['android:id/navigationBarBackground',
-                'android:id/statusBarBackground']:
-                enabled_view_ids.append(view_dict['temp_id'])
+            if (
+                self.__safe_dict_get(view_dict, "enabled")
+                and self.__safe_dict_get(view_dict, "visible")
+                and self.__safe_dict_get(view_dict, "resource_id")
+                not in ["android:id/navigationBarBackground", "android:id/statusBarBackground"]
+            ):
+                enabled_view_ids.append(view_dict["temp_id"])
         # enabled_view_ids.reverse()
 
         for view_id in enabled_view_ids:
-            if self.__safe_dict_get(self.views[view_id], 'clickable'):
+            if self.__safe_dict_get(self.views[view_id], "clickable"):
                 possible_events.append(TouchEvent(view=self.views[view_id]))
                 touch_exclude_view_ids.add(view_id)
                 touch_exclude_view_ids.union(self.get_all_children(self.views[view_id]))
 
         for view_id in enabled_view_ids:
-            if self.__safe_dict_get(self.views[view_id], 'scrollable'):
+            if self.__safe_dict_get(self.views[view_id], "scrollable"):
                 possible_events.append(ScrollEvent(view=self.views[view_id], direction="up"))
                 possible_events.append(ScrollEvent(view=self.views[view_id], direction="down"))
                 possible_events.append(ScrollEvent(view=self.views[view_id], direction="left"))
                 possible_events.append(ScrollEvent(view=self.views[view_id], direction="right"))
 
         for view_id in enabled_view_ids:
-            if self.__safe_dict_get(self.views[view_id], 'checkable'):
+            if self.__safe_dict_get(self.views[view_id], "checkable"):
                 possible_events.append(TouchEvent(view=self.views[view_id]))
                 touch_exclude_view_ids.add(view_id)
                 touch_exclude_view_ids.union(self.get_all_children(self.views[view_id]))
 
         for view_id in enabled_view_ids:
-            if self.__safe_dict_get(self.views[view_id], 'long_clickable'):
+            if self.__safe_dict_get(self.views[view_id], "long_clickable"):
                 possible_events.append(LongTouchEvent(view=self.views[view_id]))
 
         for view_id in enabled_view_ids:
-            if self.__safe_dict_get(self.views[view_id], 'editable'):
+            if self.__safe_dict_get(self.views[view_id], "editable"):
                 possible_events.append(SetTextEvent(view=self.views[view_id], text="Hello World"))
                 touch_exclude_view_ids.add(view_id)
                 # TODO figure out what event can be sent to editable views
@@ -452,7 +488,7 @@ class DeviceState(object):
         for view_id in enabled_view_ids:
             if view_id in touch_exclude_view_ids:
                 continue
-            children = self.__safe_dict_get(self.views[view_id], 'children')
+            children = self.__safe_dict_get(self.views[view_id], "children")
             if children and len(children) > 0:
                 continue
             possible_events.append(TouchEvent(view=self.views[view_id]))
@@ -470,12 +506,12 @@ class DeviceState(object):
         enabled_view_ids = []
         for view_dict in self.views:
             # exclude navigation bar if exists
-            if self.__safe_dict_get(view_dict, 'visible') and \
-                self.__safe_dict_get(view_dict, 'resource_id') not in \
-               ['android:id/navigationBarBackground',
-                'android:id/statusBarBackground']:
-                enabled_view_ids.append(view_dict['temp_id'])
-        
+            if self.__safe_dict_get(view_dict, "visible") and self.__safe_dict_get(view_dict, "resource_id") not in [
+                "android:id/navigationBarBackground",
+                "android:id/statusBarBackground",
+            ]:
+                enabled_view_ids.append(view_dict["temp_id"])
+
         text_frame = "<p id=@ text='&' attr=null bounds=null>#</p>"
         btn_frame = "<button id=@ text='&' attr=null bounds=null>#</button>"
         checkbox_frame = "<checkbox id=@ text='&' attr=null bounds=null>#</checkbox>"
@@ -492,19 +528,19 @@ class DeviceState(object):
                 continue
             # print(view_id)
             view = self.views[view_id]
-            clickable = self._get_self_ancestors_property(view, 'clickable')
-            scrollable = self.__safe_dict_get(view, 'scrollable')
-            checkable = self._get_self_ancestors_property(view, 'checkable')
-            long_clickable = self._get_self_ancestors_property(view, 'long_clickable')
-            editable = self.__safe_dict_get(view, 'editable')
+            clickable = self._get_self_ancestors_property(view, "clickable")
+            scrollable = self.__safe_dict_get(view, "scrollable")
+            checkable = self._get_self_ancestors_property(view, "checkable")
+            long_clickable = self._get_self_ancestors_property(view, "long_clickable")
+            editable = self.__safe_dict_get(view, "editable")
             actionable = clickable or scrollable or checkable or long_clickable or editable
-            checked = self.__safe_dict_get(view, 'checked', default=False)
-            selected = self.__safe_dict_get(view, 'selected', default=False)
-            content_description = self.__safe_dict_get(view, 'content_description', default='')
-            view_text = self.__safe_dict_get(view, 'text', default='')
-            view_class = self.__safe_dict_get(view, 'class').split('.')[-1]
-            bounds = self.__safe_dict_get(view, 'bounds')
-            view_bounds = f'{bounds[0][0]},{bounds[0][1]},{bounds[1][0]},{bounds[1][1]}'
+            checked = self.__safe_dict_get(view, "checked", default=False)
+            selected = self.__safe_dict_get(view, "selected", default=False)
+            content_description = self.__safe_dict_get(view, "content_description", default="")
+            view_text = self.__safe_dict_get(view, "text", default="")
+            view_class = self.__safe_dict_get(view, "class").split(".")[-1]
+            bounds = self.__safe_dict_get(view, "bounds")
+            view_bounds = f"{bounds[0][0]},{bounds[0][1]},{bounds[1][0]},{bounds[1][1]}"
             if not content_description and not view_text and not scrollable:  # actionable?
                 continue
 
@@ -512,34 +548,34 @@ class DeviceState(object):
             # view_status = ''
             view_local_id = str(len(view_descs))
             if editable:
-                view_desc = input_frame.replace('@', view_local_id).replace('#', view_text)
+                view_desc = input_frame.replace("@", view_local_id).replace("#", view_text)
                 if content_description:
-                    view_desc = view_desc.replace('&', content_description)
+                    view_desc = view_desc.replace("&", content_description)
                 else:
                     view_desc = view_desc.replace(" text='&'", "")
                 # available_actions.append(SetTextEvent(view=view, text='HelloWorld'))
             elif checkable:
-                view_desc = checkbox_frame.replace('@', view_local_id).replace('#', view_text)
+                view_desc = checkbox_frame.replace("@", view_local_id).replace("#", view_text)
                 if content_description:
-                    view_desc = view_desc.replace('&', content_description)
+                    view_desc = view_desc.replace("&", content_description)
                 else:
                     view_desc = view_desc.replace(" text='&'", "")
                 # available_actions.append(TouchEvent(view=view))
             elif clickable:  # or long_clickable
                 if merge_buttons:
                     # below is to merge buttons, led to bugs
-                    clickable_ancestor_id = self._get_ancestor_id(view=view, key='clickable')
+                    clickable_ancestor_id = self._get_ancestor_id(view=view, key="clickable")
                     if not clickable_ancestor_id:
-                        clickable_ancestor_id = self._get_ancestor_id(view=view, key='checkable')
+                        clickable_ancestor_id = self._get_ancestor_id(view=view, key="checkable")
                     clickable_children_ids = self._extract_all_children(id=clickable_ancestor_id)
                     if view_id not in clickable_children_ids:
                         clickable_children_ids.append(view_id)
                     view_text, content_description = self._merge_text(clickable_children_ids)
                     checked = self._get_children_checked(clickable_children_ids)
                     # end of merging buttons
-                view_desc = btn_frame.replace('@', view_local_id).replace('#', view_text)
+                view_desc = btn_frame.replace("@", view_local_id).replace("#", view_text)
                 if content_description:
-                    view_desc = view_desc.replace('&', content_description)
+                    view_desc = view_desc.replace("&", content_description)
                 else:
                     view_desc = view_desc.replace(" text='&'", "")
                 # available_actions.append(TouchEvent(view=view))
@@ -549,47 +585,47 @@ class DeviceState(object):
                             removed_view_ids.append(clickable_child)
             elif scrollable:
                 # print(view_id, 'continued')
-                view_desc = scroll_frame.replace('@', view_local_id)
+                view_desc = scroll_frame.replace("@", view_local_id)
                 # available_actions.append(ScrollEvent(view=view, direction='DOWN'))
                 # available_actions.append(ScrollEvent(view=view, direction='UP'))
             else:
-                view_desc = text_frame.replace('@', view_local_id).replace('#', view_text)
+                view_desc = text_frame.replace("@", view_local_id).replace("#", view_text)
                 if content_description:
-                    view_desc = view_desc.replace('&', content_description)
+                    view_desc = view_desc.replace("&", content_description)
                 else:
                     view_desc = view_desc.replace(" text='&'", "")
                 # available_actions.append(TouchEvent(view=view))
 
-            allowed_actions = ['touch']
+            allowed_actions = ["touch"]
             special_attrs = []
             if editable:
-                allowed_actions.append('set_text')
+                allowed_actions.append("set_text")
             if checkable:
-                allowed_actions.extend(['select', 'unselect'])
-                allowed_actions.remove('touch')
+                allowed_actions.extend(["select", "unselect"])
+                allowed_actions.remove("touch")
             if scrollable:
-                allowed_actions.extend(['scroll up', 'scroll down'])
-                allowed_actions.remove('touch')
+                allowed_actions.extend(["scroll up", "scroll down"])
+                allowed_actions.remove("touch")
             if long_clickable:
-                allowed_actions.append('long_touch')
+                allowed_actions.append("long_touch")
             if checked or selected:
-                special_attrs.append('selected')
-            view['allowed_actions'] = allowed_actions
-            view['special_attrs'] = special_attrs
-            view['local_id'] = view_local_id
+                special_attrs.append("selected")
+            view["allowed_actions"] = allowed_actions
+            view["special_attrs"] = special_attrs
+            view["local_id"] = view_local_id
             if len(special_attrs) > 0:
-                special_attrs = ','.join(special_attrs)
+                special_attrs = ",".join(special_attrs)
                 view_desc = view_desc.replace("attr=null", f"attr={special_attrs}")
             else:
                 view_desc = view_desc.replace(" attr=null", "")
             view_desc = view_desc.replace("bounds=null", f"bound_box={view_bounds}")
             view_descs.append(view_desc)
-            view['desc'] = view_desc.replace(f' id={view_local_id}', '').replace(f' attr={special_attrs}', '')
+            view["desc"] = view_desc.replace(f" id={view_local_id}", "").replace(f" attr={special_attrs}", "")
             indexed_views.append(view)
 
         # prefix = 'The current state has the following UI elements: \n' #views and corresponding actions, with action id in parentheses:\n '
-        state_desc = '\n'.join(view_descs)
-        activity = self.foreground_activity.split('/')[-1]
+        state_desc = "\n".join(view_descs)
+        activity = self.foreground_activity.split("/")[-1]
         # print(views_without_id)
         return state_desc, activity, indexed_views
 
@@ -604,29 +640,27 @@ class DeviceState(object):
     def _merge_text(self, children_ids):
         texts, content_descriptions = [], []
         for childid in children_ids:
-            if not self.__safe_dict_get(self.views[childid], 'visible') or \
-                self.__safe_dict_get(self.views[childid], 'resource_id') in \
-               ['android:id/navigationBarBackground',
-                'android:id/statusBarBackground']:
+            if not self.__safe_dict_get(self.views[childid], "visible") or self.__safe_dict_get(
+                self.views[childid], "resource_id"
+            ) in ["android:id/navigationBarBackground", "android:id/statusBarBackground"]:
                 # if the successor is not visible, then ignore it!
-                continue          
+                continue
 
-            text = self.__safe_dict_get(self.views[childid], 'text', default='')
+            text = self.__safe_dict_get(self.views[childid], "text", default="")
             if len(text) > 50:
                 text = text[:50]
 
-            if text != '':
+            if text != "":
                 # text = text + '  {'+ str(childid)+ '}'
                 texts.append(text)
 
-            content_description = self.__safe_dict_get(self.views[childid], 'content_description', default='')
+            content_description = self.__safe_dict_get(self.views[childid], "content_description", default="")
             if len(content_description) > 50:
                 content_description = content_description[:50]
 
-            if content_description != '':
+            if content_description != "":
                 content_descriptions.append(content_description)
 
-        merged_text = '<br>'.join(texts) if len(texts) > 0 else ''
-        merged_desc = '<br>'.join(content_descriptions) if len(content_descriptions) > 0 else ''
+        merged_text = "<br>".join(texts) if len(texts) > 0 else ""
+        merged_desc = "<br>".join(content_descriptions) if len(content_descriptions) > 0 else ""
         return merged_text, merged_desc
-
