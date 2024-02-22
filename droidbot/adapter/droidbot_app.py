@@ -7,7 +7,6 @@ import struct
 import subprocess
 import threading
 import time
-import traceback
 from typing import Dict, List, Optional
 
 import pkg_resources
@@ -81,9 +80,9 @@ class DroidBotAppConn(Adapter):
                 install_cmd = ["install", droidbot_app_path]
                 self.device.adb.run_cmd(install_cmd)
                 self.logger.debug("DroidBot app installed.")
-            except Exception:
+            except Exception as e:
                 self.logger.warning("Failed to install DroidBotApp.")
-                traceback.print_exc()
+                self.logger.exception(e)
 
         # device.adb.disable_accessibility_service(ACCESSIBILITY_SERVICE)
         device.adb.enable_accessibility_service(ACCESSIBILITY_SERVICE)
@@ -92,12 +91,12 @@ class DroidBotAppConn(Adapter):
                 and self.device.get_sdk_version() < 23 and self.enable_accessibility_hard:
             device.adb.enable_accessibility_service_db(ACCESSIBILITY_SERVICE)
             while ACCESSIBILITY_SERVICE not in device.get_service_names():
-                print("Restarting device...")
+                self.logger.info("Restarting device...")
                 time.sleep(1)
 
         # device.start_app(droidbot_app)
         while ACCESSIBILITY_SERVICE not in device.get_service_names() and self.__can_wait:
-            print("Please enable accessibility for DroidBot app manually.")
+            self.logger.info("Please enable accessibility for DroidBot app manually.")
             time.sleep(1)
 
     def tear_down(self):
@@ -113,9 +112,9 @@ class DroidBotAppConn(Adapter):
             self.sock.connect((self.host, self.port))
             listen_thread = threading.Thread(target=self.listen_messages)
             listen_thread.start()
-        except socket.error:
+        except socket.error as e:
             self.connected = False
-            traceback.print_exc()
+            self.logger.exception(e)
             raise DroidBotAppConnException()
 
     def sock_read(self, rest_len):
@@ -146,7 +145,7 @@ class DroidBotAppConn(Adapter):
                 if not isinstance(message, str):
                     message = message.decode()
                 self.handle_message(message)
-            print("[CONNECTION] %s is disconnected" % self.__class__.__name__)
+            self.logger.info("[CONNECTION] %s is disconnected" % self.__class__.__name__)
         except EOF:
             if self.check_connectivity():
                 # clear self.last_acc_event
