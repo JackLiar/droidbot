@@ -24,7 +24,7 @@ class DeviceState(object):
     def __init__(
         self,
         device,
-        views: List[Dict],
+        views: Optional[List[Dict]],
         foreground_activity: str,
         activity_stack: List[str],
         background_services: List[str],
@@ -78,7 +78,7 @@ class DeviceState(object):
     def to_json(self):
         return json.dumps(self.to_dict(), indent=2)
 
-    def __parse_views(self, raw_views: List[Dict]):
+    def __parse_views(self, raw_views: Optional[List[Dict]]):
         views = []
         if not raw_views or len(raw_views) == 0:
             return views

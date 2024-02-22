@@ -10,7 +10,7 @@ import threading
 import time
 from datetime import datetime
 from os import PathLike
-from typing import Optional
+from typing import Dict, List, Optional
 
 from .adapter.adb import ADB
 from .adapter.droidbot_app import DroidBotAppConn
@@ -887,7 +887,7 @@ class Device(object):
     def shutdown(self):
         self.adb.shell("reboot -p")
 
-    def get_views(self):
+    def get_views(self) -> Optional[List[Dict]]:
         if self.cv_mode and self.adapters[self.minicap]:
             # Get views using cv module
             views = self.minicap.get_views()
