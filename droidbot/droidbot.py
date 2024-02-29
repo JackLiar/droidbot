@@ -90,36 +90,31 @@ class DroidBot(object):
 
         self.enabled = True
 
-        try:
-            self.device = Device(
-                device_serial=device_serial,
-                is_emulator=is_emulator,
-                output_dir=self.output_dir,
-                cv_mode=cv_mode,
-                grant_perm=grant_perm,
-                enable_accessibility_hard=self.enable_accessibility_hard,
-                humanoid=self.humanoid,
-                ignore_ad=ignore_ad,
-            )
-            self.app = App(app_path, output_dir=self.output_dir)
+        self.device = Device(
+            device_serial=device_serial,
+            is_emulator=is_emulator,
+            output_dir=self.output_dir,
+            cv_mode=cv_mode,
+            grant_perm=grant_perm,
+            enable_accessibility_hard=self.enable_accessibility_hard,
+            humanoid=self.humanoid,
+            ignore_ad=ignore_ad,
+        )
+        self.app = App(app_path, output_dir=self.output_dir)
 
-            self.env_manager = AppEnvManager(device=self.device, app=self.app, env_policy=env_policy)
-            self.input_manager = InputManager(
-                device=self.device,
-                app=self.app,
-                policy_name=policy_name,
-                random_input=random_input,
-                event_count=event_count,
-                event_interval=event_interval,
-                script_path=script_path,
-                profiling_method=profiling_method,
-                master=master,
-                replay_output=replay_output,
-            )
-        except Exception as e:
-            self.logger.exception(e)
-            self.stop()
-            sys.exit(-1)
+        self.env_manager = AppEnvManager(device=self.device, app=self.app, env_policy=env_policy)
+        self.input_manager = InputManager(
+            device=self.device,
+            app=self.app,
+            policy_name=policy_name,
+            random_input=random_input,
+            event_count=event_count,
+            event_interval=event_interval,
+            script_path=script_path,
+            profiling_method=profiling_method,
+            master=master,
+            replay_output=replay_output,
+        )
 
     @staticmethod
     def get_instance():

@@ -125,57 +125,65 @@ def main():
         start_mode = "normal"
 
     if start_mode == "master":
-        droidmaster = DroidMaster(
-            app_path=opts.apk_path,
-            is_emulator=opts.is_emulator,
-            output_dir=opts.output_dir,
-            # env_policy=opts.env_policy,
-            env_policy=env_manager.EnvPolicy.POLICY_NONE,
-            policy_name=InputPolicyName(opts.input_policy),
-            random_input=opts.random_input,
-            script_path=opts.script_path,
-            event_interval=opts.interval,
-            timeout=opts.timeout,
-            event_count=opts.count,
-            cv_mode=opts.cv_mode,
-            debug_mode=opts.debug_mode,
-            keep_app=opts.keep_app,
-            keep_env=opts.keep_env,
-            profiling_method=opts.profiling_method,
-            grant_perm=opts.grant_perm,
-            enable_accessibility_hard=opts.enable_accessibility_hard,
-            qemu_hda=opts.qemu_hda,
-            qemu_no_graphic=opts.qemu_no_graphic,
-            humanoid=opts.humanoid,
-            ignore_ad=opts.ignore_ad,
-            replay_output=opts.replay_output)
-        droidmaster.start()
+        try:
+            droidmaster = DroidMaster(
+                app_path=opts.apk_path,
+                is_emulator=opts.is_emulator,
+                output_dir=opts.output_dir,
+                # env_policy=opts.env_policy,
+                env_policy=env_manager.EnvPolicy.POLICY_NONE,
+                policy_name=InputPolicyName(opts.input_policy),
+                random_input=opts.random_input,
+                script_path=opts.script_path,
+                event_interval=opts.interval,
+                timeout=opts.timeout,
+                event_count=opts.count,
+                cv_mode=opts.cv_mode,
+                debug_mode=opts.debug_mode,
+                keep_app=opts.keep_app,
+                keep_env=opts.keep_env,
+                profiling_method=opts.profiling_method,
+                grant_perm=opts.grant_perm,
+                enable_accessibility_hard=opts.enable_accessibility_hard,
+                qemu_hda=opts.qemu_hda,
+                qemu_no_graphic=opts.qemu_no_graphic,
+                humanoid=opts.humanoid,
+                ignore_ad=opts.ignore_ad,
+                replay_output=opts.replay_output)
+            droidmaster.start()
+        except Exception as e:
+            droidmaster.logger.exception(e)
+            droidmaster.stop()
     else:
-        droidbot = DroidBot(
-            app_path=opts.apk_path,
-            device_serial=opts.device_serial,
-            is_emulator=opts.is_emulator,
-            output_dir=opts.output_dir,
-            # env_policy=opts.env_policy,
-            env_policy=env_manager.EnvPolicy.POLICY_NONE,
-            policy_name=InputPolicyName(opts.input_policy),
-            random_input=opts.random_input,
-            script_path=opts.script_path,
-            event_interval=opts.interval,
-            timeout=opts.timeout,
-            event_count=opts.count,
-            cv_mode=opts.cv_mode,
-            debug_mode=opts.debug_mode,
-            keep_app=opts.keep_app,
-            keep_env=opts.keep_env,
-            profiling_method=opts.profiling_method,
-            grant_perm=opts.grant_perm,
-            enable_accessibility_hard=opts.enable_accessibility_hard,
-            master=opts.master,
-            humanoid=opts.humanoid,
-            ignore_ad=opts.ignore_ad,
-            replay_output=opts.replay_output)
-        droidbot.start()
+        try:
+            droidbot = DroidBot(
+                app_path=opts.apk_path,
+                device_serial=opts.device_serial,
+                is_emulator=opts.is_emulator,
+                output_dir=opts.output_dir,
+                # env_policy=opts.env_policy,
+                env_policy=env_manager.EnvPolicy.POLICY_NONE,
+                policy_name=InputPolicyName(opts.input_policy),
+                random_input=opts.random_input,
+                script_path=opts.script_path,
+                event_interval=opts.interval,
+                timeout=opts.timeout,
+                event_count=opts.count,
+                cv_mode=opts.cv_mode,
+                debug_mode=opts.debug_mode,
+                keep_app=opts.keep_app,
+                keep_env=opts.keep_env,
+                profiling_method=opts.profiling_method,
+                grant_perm=opts.grant_perm,
+                enable_accessibility_hard=opts.enable_accessibility_hard,
+                master=opts.master,
+                humanoid=opts.humanoid,
+                ignore_ad=opts.ignore_ad,
+                replay_output=opts.replay_output)
+            droidbot.start()
+        except Exception as e:
+            droidbot.logger.exception(e)
+            droidbot.stop()
     return
 
 
