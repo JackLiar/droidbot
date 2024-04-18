@@ -50,6 +50,7 @@ class ADB(Adapter):
         :return:
         """
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.setLevel(logging.INFO)
         if device is None:
             from droidbot.device import Device
 
@@ -111,6 +112,8 @@ class ADB(Adapter):
         """
         connect adb
         """
+        subprocess.check_output(["adb", "kill-server"])
+        subprocess.check_output(["adb", "start-server"])
         subprocess.check_output(["adb", "connect", self.serial])
         self.logger.info(f"connected to {self.serial}")
 
